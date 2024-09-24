@@ -6,7 +6,7 @@ import sys
 import torch
 from sentence_transformers import util
 
-from semantic_code_search.embed import do_embed
+from semantic_code_search.embed import do_embed, update_embed
 from semantic_code_search.prompt import ResultScreen
 
 
@@ -49,6 +49,9 @@ def do_query(args, model):
         print('Embeddings not found in {}. Generating embeddings now.'.format(
             args.path_to_repo))
         do_embed(args, model)
+    else:
+        print("Embedding found. Syncing with repo now.")
+        update_embed(args, model)
 
     results = _query_embeddings(model, args)
 

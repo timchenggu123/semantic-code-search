@@ -59,10 +59,10 @@ def _extract_functions(nodes, fp, file_content, relevant_node_types):
     return out
 
 
-def _get_repo_functions(root, supported_file_extensions, relevant_node_types):
+def _get_repo_functions(fp_list, supported_file_extensions, relevant_node_types):
     functions = []
     print('Extracting functions from {}'.format(root))
-    for fp in tqdm([root + '/' + f for f in os.popen('git -C {} ls-files'.format(root)).read().split('\n')]):
+    for fp in fp_list:
         if not os.path.isfile(fp):
             continue
         try:
@@ -91,9 +91,11 @@ def _get_repo_functions(root, supported_file_extensions, relevant_node_types):
 def do_embed(args, model):
     nodes_to_extract = ['function_definition', 'method_definition',
                         'function_declaration', 'method_declaration']
-    functions = _get_repo_functions(
-        args.path_to_repo, _supported_file_extensions(), nodes_to_extract)
+    fp_list = tqdm([args.path_to_repo + '/' + f for f in os.popen('git -C {} ls-files'.format(root)).read().split('\n')])
 
+    functions = _get_repo_functions(
+        fp_list, _supported_file_extensions(), nodes_to_extract)
+    
     if not functions:
         print('No supported languages found in {}. Exiting'.format(args.path_to_repo))
         sys.exit(1)
@@ -107,4 +109,69 @@ def do_embed(args, model):
                'embeddings': corpus_embeddings, 'model_name': args.model_name_or_path}
     with gzip.open(args.path_to_repo + '/' + '.embeddings', 'w') as f:
         f.write(pickle.dumps(dataset))
+
+    current_commit = os.popen('git rev-parse HEAD').read().strip()
+    with open(os.path.join(args.path_to_repo, '.embeddings.meta'), "w") as f:
+        f.write(current_commit)
+    return dataset
+
+def update_embed(args, model):
+    if not os.path.isfile(os.path.join(args.path_to_repo, '.embeddings.meta'))
+        print('Warning: Aborting attempt to update embeddings cache because .embeddings is present but there is no corresponding .embeddings.meta file. As a result, sem might be out of sync with your current repo. To fix this, regenerate the embeddings by deleting .embeddings file.')
+        return dataset
+
+    with gzip.open(args.path_to_repo + '/' + '.embeddings', 'r') as f:
+        dataset = pickle.loads(f.read())
+
+    nodes_to_extract = ['function_definition', 'method_definition',
+                    'function_declaration', 'method_declaration']
+
+    current_commit = os.popen('git rev-parse HEAD').read().strip()
+    with open(os.path.join(args.path_to_repo, '.embeddings.meta'), "r") as f:
+        old_commit = f.read().strip()
+        if old_commit != current_commit:
+            delta = os.popen("git diff --name-only 204d35d16ef5c2c1ea1a4bb25442908a306c857a HEAD^").read().split('\n')
+        else:
+            return
+    
+    print("The current repo seems to out of date the cache. The following files are different:")
+    to_delete = set()
+    to_modify = set()
+    for status, fp in tqdm([i.split('\t') for i in delta]):
+        fp = os.path.join(args.path_to_repo, fp)
+        if status == "A":
+            to_modify.add(fp)
+        if status == "D": 
+            to_delete.add(fp)
+        if status == "M":
+            to_modify.add(fp)
+        print(f"{status}\t{fp}")
+    
+    abort = True if lower(input("Do you want to update the embeddings? [Y/N]")) == lower("y") else False
+
+    if abort: return dataset
+    
+    for function, embedding in zip(dataset["functions"], dataset["embeddings"]):
+        if function['file'] in to_delete or function['file'] in to_modify:
+            dataset["functions"].remove(function)
+            dataset["embeddings"].remove(embedding)
+            continue
+
+    functions = []
+    for fp in to_modify:
+        functions.extend(_get_repo_functions([fp], _supported_file_extensions, nodes_to_extract))
+
+    print('Embedding {} functions in {} batches. This is done once and cached in .embeddings'.format(
+        len(functions), int(np.ceil(len(functions)/args.batch_size))))
+    corpus_embeddings = model.encode(
+        [f['text'] for f in functions], convert_to_tensor=True, show_progress_bar=True, batch_size=args.batch_size)
+
+    dataset['functions'].extend(functions)
+    dataset['corpus_embeddings'].extend(corpus_embeddings)
+
+    with gzip.open(args.path_to_repo + '/' + '.embeddings', 'w') as f:
+        f.write(pickle.dumps(dataset))
+    
+    with open(os.path.join(args.path_to_repo, '.embeddings.meta'), "w") as f:
+        f.write(current_commit)
     return dataset
