@@ -26,11 +26,15 @@ def git_root(path=None):
 
 def embed_func(args):
     model = SentenceTransformer(args.model_name_or_path)
+    if args.gpu:
+        model = model.to('cuda')
     do_embed(args, model)
 
 
 def query_func(args):
     model = SentenceTransformer(args.model_name_or_path)
+    if args.gpu:
+        model = model.to('cuda')
     if len(args.query_text) > 0:
         args.query_text = ' '.join(args.query_text)
     else:
@@ -40,6 +44,8 @@ def query_func(args):
 
 def cluster_func(args):
     model = SentenceTransformer(args.model_name_or_path)
+    if args.gpu:
+        model = model.to('cuda')
     do_cluster(args, model)
 
 
@@ -71,11 +77,14 @@ def main():
                         help='Ignore clusters smaller than this size. Use this if you want to find code that is similar and repeated many times (e.g. >5)')
     parser.add_argument('--cluster-ignore-identincal', action='store_true', default=True,
                         required=False, help='Ignore identical code / exact duplicates (where distance is 0)')
+    parser.add_argument('--gpu', required=False, metavar='GPU', default=True, help='Run with GPU if possible. Set to false to force using CPU. Defaults to True')
     parser.set_defaults(func=query_func)
     parser.add_argument('query_text', nargs=argparse.REMAINDER)
 
     args = parser.parse_args()
-
+    if args.gpu:
+        import torch
+        args.gpu = torch.cuda.is_available()
     if args.embed:
         embed_func(args)
     elif args.cluster:
