@@ -5,17 +5,17 @@ with open('README.md', 'r') as f:
 
 setuptools.setup(
     name='semantic-code-search',
-    version='0.4.0',
+    version='0.5.0',
     author='Kiril Videlov',
     author_email='kiril@codeball.ai',
     description='Search your codebase with natural language.',
     install_requires=[
-                'numpy==1.22.4',
+                'numpy>=1.22.4',
                 'prompt_toolkit==3.0.32',
                 'Pygments==2.12.0',
-                'sentence_transformers==2.2.2',
+                'sentence_transformers>=2.2.2',
                 'setuptools==62.6.0',
-                'torch==1.12.1',
+                'torch>=1.12.1',
                 'tree_sitter==0.20.1',
                 'tree_sitter_builds==2022.8.27',
                 'tree_sitter_languages==1.5.0',
