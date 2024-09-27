@@ -51,12 +51,20 @@ How does this work? In a nutshell, it uses a neural network to generate code emb
 
 ## Installation
 
-You can install `semantic-code-search` via `pip`.
+You can install `semantic-code-search` via `pip`, or locally from this repository.
 
 ### Pip (MacOS, Linux, Windows)
 
 ```bash
 pip3 install semantic-code-search
+```
+
+### Local (Linux, MacOS)
+
+```
+git clone git@github.com:timchenggu123/semantic-code-search.git
+cd semantic-code-search
+pip3 install .
 ```
 
 ## Usage
